@@ -58,7 +58,7 @@ class CTkFileManagerModal(ctk.CTkToplevel):
         self.select_button.pack(side="right", padx=5)
 
         if self.select_mode == 'file':
-            self.multi_select_button = ctk.CTkButton(button_frame, text="Start Multi-Select", command=self._toggle_multi_select, width=140)
+            self.multi_select_button = ctk.CTkButton(button_frame, text="Start Multi-Select", command=self._start_multi_select_mode, width=140)
             self.multi_select_button.pack(side="right", padx=5)
         elif self.select_mode == 'folder':
             ctk.CTkButton(button_frame, text="Select Current", command=self._select_current_folder, width=120).pack(side="right", padx=5)
@@ -104,17 +104,31 @@ class CTkFileManagerModal(ctk.CTkToplevel):
         self.file_listbox.configure(state="disabled")
         self.file_listbox.see(f"{self.focused_index + 1}.0")
 
-    def _toggle_multi_select(self):
-        self.multi_select_mode = not self.multi_select_mode
-        if self.multi_select_mode:
-            log.info("Started multi-select mode.")
-            self.multi_select_button.configure(text="Confirm Selection")
-            self.select_button.configure(state="disabled")
+    def _start_multi_select_mode(self):
+        self.multi_select_mode = True
+        log.info("Started multi-select mode.")
+        self.multi_select_button.configure(text="Confirm Selection", command=self._confirm_multi_selection)
+        self.select_button.configure(state="disabled")
+        self.selected_indices.clear() # Clear previous single selection
+        self._render_file_list()
+
+    def _confirm_multi_selection(self):
+        selected_paths = [os.path.join(self.current_path, self.file_list[i][0]) for i in self.selected_indices if not self.file_list[i][1]]
+        if selected_paths:
+            log.info(f"Confirmed multi-selection: {selected_paths}")
+            if self.callback:
+                self.callback(selected_paths)
+            self.destroy()
         else:
-            log.info("Ended multi-select mode.")
-            self.multi_select_button.configure(text="Start Multi-Select")
-            self.select_button.configure(state="normal")
-            self._confirm_selection() # Confirm selection when mode is toggled off
+            messagebox.showinfo("No Files Selected", "Please select at least one file.")
+            self._reset_multi_select_mode()
+
+    def _reset_multi_select_mode(self):
+        self.multi_select_mode = False
+        self.multi_select_button.configure(text="Start Multi-Select", command=self._start_multi_select_mode)
+        self.select_button.configure(state="normal")
+        self.selected_indices.clear()
+        self._render_file_list()
 
     def _on_click(self, event):
         index = int(self.file_listbox.index(f"@{event.x},{event.y}").split('.')[0]) - 1
@@ -137,7 +151,15 @@ class CTkFileManagerModal(ctk.CTkToplevel):
 
     def _on_enter(self, event):
         if self.file_list:
-            self._confirm_selection()
+            if self.multi_select_mode:
+                # In multi-select mode, Enter key should toggle selection
+                if self.focused_index in self.selected_indices:
+                    self.selected_indices.remove(self.focused_index)
+                else:
+                    self.selected_indices.add(self.focused_index)
+                self._render_file_list()
+            else:
+                self._confirm_selection()
 
     def _on_up(self, event):
         if self.file_list and self.focused_index > 0:
@@ -175,15 +197,6 @@ class CTkFileManagerModal(ctk.CTkToplevel):
 
     def _confirm_selection(self):
         if not self.file_list:
-            return
-
-        if self.multi_select_mode:
-            selected_paths = [os.path.join(self.current_path, self.file_list[i][0]) for i in self.selected_indices if not self.file_list[i][1]]
-            if selected_paths:
-                log.info(f"Confirmed multi-selection: {selected_paths}")
-                if self.callback:
-                    self.callback(selected_paths)
-                self.destroy()
             return
 
         name, is_dir = self.file_list[self.focused_index]

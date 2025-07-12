@@ -1,5 +1,15 @@
 # Changelog
 
+## [2.4.0] - 2025-07-12
+
+### Fixed
+- Fixed a critical bug where the multi-select feature in the file manager was only returning a single file instead of all selected files. The `_confirm_selection` method was refactored to correctly gather all selected file paths when in multi-select mode.
+
+## [2.3.0] - 2025-07-12
+
+### Fixed
+- Fixed a critical bug where the multi-select feature in the file manager was only returning a single file instead of all selected files.
+
 ## [2.2.0] - 2025-07-12
 
 ### Changed
